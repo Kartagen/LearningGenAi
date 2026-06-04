@@ -1,0 +1,35 @@
+/tmp
+/out-tsc
+
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/.pnp
+.pnp.js
+
+.vscode/*
+
+# Internal / support folder: report generators, generated DOCX files,
+# notebook adapters, headless orchestrators. Not part of the labs themselves.
+/reports/
+
+# Original source materials (Kaggle notebooks, lecture PDFs, raw zips, etc.)
+/src/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+
+# OS noise
+.DS_Store
+Thumbs.db

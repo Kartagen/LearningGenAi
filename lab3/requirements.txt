@@ -1,0 +1,30 @@
+# Lab 3 — Stable Diffusion pipelines + DreamBooth LoRA (Windows local run)
+#
+# Install with:
+#   python -m pip install -r requirements.txt
+#
+# CUDA-enabled PyTorch must be installed separately following the official
+# selector at https://pytorch.org/get-started/locally/
+# Example (CUDA 12.1):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+diffusers>=0.35.0,<0.37.0
+transformers>=4.45.0,<5.0.0
+accelerate>=0.30.0,<2.0.0
+peft>=0.17.0,<1.0.0
+safetensors>=0.4.0
+huggingface_hub>=0.25.0,<1.0.0
+ftfy
+pillow
+matplotlib
+pandas
+tqdm
+requests
+packaging
+jupyterlab
+ipywidgets
+
+# Optional (not always installable on Windows; both notebooks degrade gracefully
+# if these are absent):
+# xformers
+# bitsandbytes

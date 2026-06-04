@@ -1,0 +1,18 @@
+# Local working directory: HF cache, downloaded training script, model weights,
+# generated images, training logs. Easily rebuilt by re-running the notebooks.
+work/
+
+# Outputs from runs you might want to keep, but they can be regenerated.
+# Comment the next line out if you want to commit outputs to GitHub.
+outputs/
+
+# Don't commit the extracted dataset images (the .zip lives in src/).
+data/dog_example_augmented_20/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Jupyter
+*.nbconvert.ipynb
