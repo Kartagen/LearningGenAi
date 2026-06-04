@@ -1,140 +1,176 @@
-# Lab 3 — Stable Diffusion + DreamBooth LoRA (Windows local run)
+# Лабораторна робота 3 — Stable Diffusion pipelines + DreamBooth LoRA
 
-Adapted from the two original Kaggle notebooks in `../src/`:
+Чотири pipeline Stable Diffusion v1.5 (Text-to-Image, Img2Img, Inpainting,
+Depth2Img) у бібліотеці Hugging Face Diffusers + персоналізація моделі через
+DreamBooth LoRA на власному датасеті з 20 augmented-зображень одного об'єкта.
 
-- `stable-diffusion-pipelines-diffusers.ipynb` →
-  `notebooks/01_stable_diffusion_pipelines.ipynb`
-- `dreambooth-lora-kaggle.ipynb` →
-  `notebooks/02_dreambooth_lora.ipynb`
+Ноутбуки адаптовано з оригінальних Kaggle-версій (див. `reports/lab3/adapt_notebooks.py`)
+до локального запуску у Windows з NVIDIA GPU.
 
-The originals are configured for Kaggle (`/kaggle/working`, `kaggle_secrets`,
-bash `%%` magics, `!nvidia-smi`, `!find`, etc.). The adapted versions in
-`notebooks/` run on a local Windows machine with an NVIDIA GPU.
-
-## Folder layout
+## Структура
 
 ```
 lab3/
-├── README.md
+├── run_lab.py                  # headless orchestrator для повного прогону
 ├── requirements.txt
-├── .gitignore
-├── adapt_notebooks.py            # re-runs the Kaggle→local conversion
 ├── notebooks/
 │   ├── 01_stable_diffusion_pipelines.ipynb
 │   └── 02_dreambooth_lora.ipynb
 ├── data/
-│   └── dog_example_augmented_20/ # extracted from ../src/dog_example_augmented_20.zip
-│       ├── images/
-│       ├── metadata.jsonl
-│       └── README.md
-├── outputs/                      # generated images, comparison grids, reports
-└── work/                         # HF cache, downloaded training script, LoRA weights, logs
+│   └── dog_example_augmented_20/   # 20 instance images + metadata.jsonl
+├── outputs/
+│   ├── pipelines/              # text2img, guidance grid, img2img, inpaint, depth
+│   │   └── metadata.json
+│   └── dreambooth/             # baseline, lora, comparison.jpg
+│       └── results.json
+└── work/                       # HF cache, train_dreambooth_lora.py, LoRA weights, logs
 ```
 
-`work/` and `outputs/` are created by the bootstrap cell of each notebook.
+## Залежності
 
-## Prerequisites
+- Python 3.10+ (тестовано на 3.14)
+- NVIDIA GPU >= 8 GB VRAM (16 GB рекомендовано для DreamBooth)
+- CUDA-збірка PyTorch (встановити окремо з https://pytorch.org/get-started/locally/)
+- ~15 GB вільного місця на диску (моделі SD-1.5 + inpainting + depth)
 
-1. **NVIDIA GPU with ≥ 8 GB VRAM** (16 GB recommended for the DreamBooth notebook).
-   Without CUDA the notebooks will still import, but generation will be
-   prohibitively slow or fail with OOM.
-2. **Python 3.10 – 3.12** in a virtual environment.
-3. **CUDA-enabled PyTorch**. Install separately first, choosing the matching
-   CUDA build from <https://pytorch.org/get-started/locally/>. Example:
-
-   ```powershell
-   pip install torch --index-url https://download.pytorch.org/whl/cu121
-   ```
-
-4. **Hugging Face token** (`read` scope) for gated repos. Either:
-   - export it before launching Jupyter:
-     ```powershell
-     $env:HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxxxxxx"
-     ```
-   - or run `huggingface-cli login` once and let the notebook pick the
-     cached credential up.
-
-## Installation
+## Встановлення
 
 ```powershell
 cd D:\LearningMagister\Semester2\GenAIandItsUsage\lab3
 
-# (one-time) create venv
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# install CUDA torch FIRST (see prerequisites)
+# CUDA-torch встановити ПЕРШИМ
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-# then everything else
+# усе інше
 pip install -r requirements.txt
-
-# launch the notebooks
-jupyter lab
 ```
 
-## Running the lab
+Опційно (для gated моделей): `$env:HF_TOKEN = "hf_xxx"` або `huggingface-cli login`.
+Для цієї лаби всі моделі публічні -- токен не обов'язковий.
 
-Open the notebook from JupyterLab and execute cells top to bottom.
+## Запуск
 
-**Notebook 1** — `notebooks/01_stable_diffusion_pipelines.ipynb`
-Walks through `Text-to-Image`, `Img2Img`, `Inpainting`, `Depth2Img`, the VAE /
-tokenizer / UNet / scheduler components, and a manual sampling loop.
+```bash
+# Варіант A -- через Jupyter (рекомендовано для покрокового вивчення)
+jupyter lab notebooks/
 
-**Notebook 2** — `notebooks/02_dreambooth_lora.ipynb`
-Trains a DreamBooth LoRA on the 20-image dog dataset in
-`data/dog_example_augmented_20/images/`, then generates and compares against
-the baseline SD 1.5 model.
-
-The first cell of each notebook is a bootstrap cell added by
-`adapt_notebooks.py`. It sets `LAB3_WORK_DIR` / `LAB3_DATA_DIR` and pins the
-Hugging Face cache inside `lab3/work/`.
-
-## What was changed vs. the Kaggle originals
-
-| Kaggle original | Local replacement |
-| --- | --- |
-| `/kaggle/working` | `lab3/work` (via `LAB3_WORK_DIR`) |
-| `/kaggle/input` | `lab3/data` (via `LAB3_DATA_DIR`) |
-| `kaggle_secrets.UserSecretsClient` | `os.environ["HF_TOKEN"]` |
-| `%%bash … pip install …` | `%pip install …` |
-| `!nvidia-smi` | `subprocess.check_output(['nvidia-smi'])` guarded by `shutil.which` |
-| `!find … | sort` | `Path.rglob` |
-| `!python {script} --help | head -40` | `subprocess.run([..., '--help'])` |
-| `RAW_DATA_DIR = Path('/kaggle/input/datasets/.../images')` | `Path(LAB3_DATA_DIR) / 'dog_example_augmented_20' / 'images'` |
-
-The lab content itself (prompts, model IDs, hyperparameters, explanatory
-markdown) is left untouched. Run `python adapt_notebooks.py` again if you
-edit the originals in `../src/` and want to regenerate the adapted versions.
-
-## Known Windows caveats
-
-- **xformers** rarely installs cleanly on Windows. Both notebooks already wrap
-  `enable_xformers_memory_efficient_attention()` in `try/except`, so missing
-  xformers is non-fatal — generation just runs a bit slower.
-- **bitsandbytes** (used for `--use_8bit_adam` in the DreamBooth notebook) is
-  not supported on Windows out of the box. The notebook already sets
-  `USE_8BIT_ADAM = False` and the conditional skips the flag if `bitsandbytes`
-  is not installed.
-- **CUDA OOM**: drop `RESOLUTION` to `384`, `MAX_TRAIN_STEPS` to `100–200`, or
-  set `RUN_DEPTH2IMG = False` / `RUN_INPAINTING = False` in notebook 1.
-- The DreamBooth training script (`train_dreambooth_lora.py`) is downloaded
-  by the notebook itself from the GitHub release tag matching the installed
-  `diffusers` version. It lands in `lab3/work/`.
-
-## Dataset
-
-`data/dog_example_augmented_20/` is the 20-image augmented dog dataset
-extracted from `../src/dog_example_augmented_20.zip`. See
-`data/dog_example_augmented_20/README.md` for the dataset description.
-
-The notebook uses `data/dog_example_augmented_20/images/` directly as the
-DreamBooth instance directory by setting:
-
-```python
-USE_HF_EXAMPLE_DATASET = False
-RAW_DATA_DIR = Path(os.environ["LAB3_DATA_DIR"]) / "dog_example_augmented_20" / "images"
+# Варіант B -- автоматичний прогін усіх експериментів
+python run_lab.py --all                       # ~60 хв + ~15 GB downloads
+python run_lab.py --pipelines                 # тільки notebook 1
+python run_lab.py --dreambooth                # тільки notebook 2
+python run_lab.py --pipelines --no-inpaint --no-depth   # швидкий subset
 ```
 
-To use the upstream `diffusers/dog-example` dataset instead, flip
-`USE_HF_EXAMPLE_DATASET = True` in cell 17.
+Прапори `--no-inpaint` і `--no-depth` пропускають завантаження ~10 GB ваг
+inpainting / depth моделей; решта Stage 1 (text2img + guidance + img2img)
+залишається.
+
+## Конфігурація
+
+### Notebook 1 -- Stable Diffusion pipelines
+
+| Параметр | Значення |
+|---|---:|
+| Базова модель | `stable-diffusion-v1-5/stable-diffusion-v1-5` |
+| Тип ваг | float16 |
+| Resolution | 512x512 |
+| Inference steps | 30 |
+| Guidance scale (експеримент) | 2.0, 8.0, 12.0 |
+| Img2Img strength (експеримент) | 0.25, 0.55, 0.85 |
+| Inpaint model | `stable-diffusion-v1-5/stable-diffusion-inpainting` |
+| Depth model | `sd2-community/stable-diffusion-2-depth` |
+| Seed | 42 / 123 |
+
+### Notebook 2 -- DreamBooth LoRA
+
+| Параметр | Значення |
+|---|---:|
+| Instance images | 20 (`data/dog_example_augmented_20/images/`) |
+| UNIQUE_TOKEN / CLASS_NOUN | `sks` / `puppy` |
+| Instance prompt | `a photo of sks puppy` |
+| Resolution | 512 |
+| Train batch size | 1 |
+| Gradient accumulation | 1 |
+| Learning rate | 5e-5 |
+| Max train steps | 200 |
+| LoRA rank | 4 |
+| Mixed precision | no |
+| 8-bit Adam | False (bitsandbytes не працює на Windows out-of-the-box) |
+| Gradient checkpointing | True |
+| Prior preservation | False (для базового рівня) |
+
+## Що реалізовано
+
+| Завдання | Локація |
+|---|---|
+| Text-to-Image базова генерація | notebook 1, cell-21 |
+| Експеримент із `guidance_scale` (3 варіанти) | notebook 1, cell-23 |
+| Розбір компонентів pipeline (VAE/tokenizer/text_encoder/UNet/scheduler) | notebook 1, cells 24-43 |
+| VAE encode/decode + scaling_factor | notebook 1, cells 26-29 |
+| DIY sampling loop із classifier-free guidance | notebook 1, cells 44-47 |
+| Img2Img із 3 значеннями `strength` | notebook 1, cells 48-55 |
+| Inpainting (mask + prompt) | notebook 1, cells 56-59 |
+| Depth2Img (MiDaS depth conditioning) | notebook 1, cells 60-61 |
+| Підготовка instance-датасету | notebook 2, cells 16-18 |
+| Baseline-генерація (до тренування) | notebook 2, cells 24-27 |
+| DreamBooth LoRA training (200 steps) | notebook 2, cells 28-38 |
+| Prior preservation (теорія) | notebook 2, cells 32-33 |
+| Inference з LoRA-вагами | notebook 2, cells 40-41 |
+| Comparison grid base vs LoRA | notebook 2, cells 42-44 |
+
+## Результати (реальний прогін)
+
+| Етап | Час |
+|---|---:|
+| SD-1.5 download | ~25 хв (5 GB) |
+| Stage 1.1 text2img + guidance grid | ~25 с |
+| Stage 1.2 Img2Img x 3 strengths | ~7 с |
+| Stage 1.3 inpaint download + gen | 5.5 хв + 5.4 с |
+| Stage 1.4 depth download + gen | 25 хв + 2.5 с |
+| Stage 2 DreamBooth повний цикл | 232 с (3.9 хв), training сам -- 181 с |
+| **Загалом** | **~60 хв** |
+
+Виходи (`outputs/`):
+
+- `pipelines/text2img_basic.png`, `guidance_cfg{2,8,12}.png`
+- `pipelines/img2img_strength{0.25,0.55,0.85}.png`
+- `pipelines/inpainting_result.png`, `pipelines/depth2img_result.png`
+- `pipelines/metadata.json`
+- `dreambooth/baseline_{01..04}.png`, `dreambooth/lora_{01..04}.png`
+- `dreambooth/comparison.jpg`, `dreambooth/results.json`
+
+## Адаптація з Kaggle
+
+Утиліта `reports/lab3/adapt_notebooks.py` конвертує оригінальні Kaggle-ноутбуки
+зі `src/` (git-ignored) у локальні версії у `lab3/notebooks/`:
+
+| Kaggle оригінал | Локальна заміна |
+|---|---|
+| `/kaggle/working` | `lab3/work` (через env `LAB3_WORK_DIR`) |
+| `/kaggle/input` | `lab3/data` (через env `LAB3_DATA_DIR`) |
+| `kaggle_secrets.UserSecretsClient` | `os.environ['HF_TOKEN']` |
+| `%%bash pip install ...` | `%pip install ...` |
+| `!nvidia-smi` | `subprocess + shutil.which` guard |
+| `!find ... | sort` | `Path.rglob(...) + sort` |
+| `!python {script} --help` | `subprocess.run([sys.executable, ...])` |
+
+Перегенерувати ноутбуки після оновлення оригіналів:
+
+```bash
+python ../reports/lab3/adapt_notebooks.py
+```
+
+## Windows-нюанси
+
+- **xformers** часто не ставиться на Windows -- ноутбуки обгортають
+  `enable_xformers_memory_efficient_attention()` у try/except, тож відсутність
+  xformers не критична (просто трохи повільніше).
+- **bitsandbytes** (потрібен для `--use_8bit_adam`) не підтримується на Windows
+  out-of-the-box -- `USE_8BIT_ADAM = False`, прапор пропускається умовно.
+- **CUDA OOM**: зменшити `RESOLUTION` до 384, `MAX_TRAIN_STEPS` до 100-200,
+  або вимкнути inpainting/depth прапорами `--no-inpaint --no-depth`.
+- **Symlinks**: HF Hub попереджає, що на Windows без Developer Mode кеш
+  займає удвічі більше місця (blobs + snapshots копії). Це нормально.
